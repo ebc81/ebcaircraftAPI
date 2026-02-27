@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Zugriffsstatistik</title>
+    <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; background-color: #f4f7f9; }
+        .chart-container { width: 80%; max-width: 900px; padding: 20px; background-color: #ffffff; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
+        h1 { text-align: center; color: #333; }
+    </style>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+
+    <div class="chart-container">
+        <h1>Zugriffe der letzten 20 Tage</h1>
+        <canvas id="accessChart"></canvas>
+    </div>
+
+    <script>
+        // Funktion zum Abrufen der Daten und Erstellen des Diagramms
+        async function createChart() {
+            try {
+                // Daten vom Server (von unserer /statistics/data Route) abrufen
+                const response = await fetch('/statistics/data');
+                const stats = await response.json();
+
+                const ctx = document.getElementById('accessChart').getContext('2d');
+
+                new Chart(ctx, {
+                    type: 'bar', // Balkendiagramm
+                    data: {
+                        labels: stats.labels, // Die Tage (z.B. "2025-09-25")
+                        datasets: [{
+                            label: 'API-Zugriffe pro Tag',
+                            data: stats.data, // Die Anzahl der Zugriffe
+                            backgroundColor: 'rgba(0, 123, 255, 0.5)',
+                            borderColor: 'rgba(0, 123, 255, 1)',
+                            borderWidth: 1,
+                            borderRadius: 4
+                        }]
+                    },
+                    options: {
+                        scales: {
+                            y: {
+                                beginAtZero: true, // Y-Achse bei 0 starten
+                                ticks: {
+                                    // Nur ganze Zahlen auf der Y-Achse anzeigen
+                                    stepSize: 1 
+                                }
+                            }
+                        },
+                        plugins: {
+                            legend: {
+                                display: false // Legende ausblenden, da es nur einen Datensatz gibt
+                            }
+                        }
+                    }
+                });
+            } catch (error) {
+                console.error("Fehler beim Erstellen des Diagramms:", error);
+                // Fehlermeldung auf der Seite anzeigen
+                document.querySelector('.chart-container').innerHTML = '<h1>Fehler beim Laden der Daten</h1>';
+            }
+        }
+        
+        // Die Funktion beim Laden der Seite aufrufen
+        createChart();
+    </script>
+
+</body>
+</html>

@@ -1,0 +1,24 @@
+{
+  "name": "ebcaircraftapi",
+  "version": "1.0.0",
+  "description": "Node.js Restful API with Node.js, Express and MySQl to acces aircraft Database for dump1090 Android app",
+  "main": "server.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [
+    "dump1090"
+  ],
+  "author": "ebctech.eu",
+  "license": "ISC",
+  "dependencies": {
+    "axios": "^1.12.2",
+    "express": "^5.1.0",
+    "express-rate-limit": "^8.1.0",
+    "helmet": "^8.1.0",
+    "moment": "^2.30.1",
+    "mysql2": "^3.15.0",
+    "node-cache": "^5.1.2",
+    "swagger-stats": "^0.99.7"
+  }
+}
