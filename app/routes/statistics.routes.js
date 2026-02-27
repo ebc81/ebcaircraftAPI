@@ -5,13 +5,16 @@
  *
  * GET /statistics       → Serves the statistics HTML page (Chart.js dashboard)
  * GET /statistics/data  → Returns daily request counts for the last 20 days,
- *                          sourced from the swagger-stats /metrics endpoint.
+ *                          read directly from the in-process swagger-stats core
+ *                          (no HTTP round-trip needed).
  */
 const express = require('express');
-const router = express.Router();
-const axios = require('axios');
-const moment = require('moment');
-const path = require('path');
+const router  = express.Router();
+const moment  = require('moment');
+const path    = require('path');
+// Access swagger-stats data directly — avoids a self-referencing HTTP call
+// and works correctly in a cluster (each worker reports its own stats).
+const swStats = require('swagger-stats');
 
 // Serve the statistics HTML dashboard
 router.get('/', (req, res) => {
@@ -20,33 +23,39 @@ router.get('/', (req, res) => {
 
 /**
  * /statistics/data — Aggregates swagger-stats timeline data into daily buckets.
+ *
+ * swagger-stats stores timeline as parallel arrays inside `timeline.data`:
+ *   { ts: [epochMs, …], requests: [count, …], … }
+ *
  * Returns a JSON object shaped for Chart.js:
  *   { labels: ["YYYY-MM-DD", …], data: [<count>, …] }
  */
-router.get('/data', async (req, res) => {
+router.get('/data', (req, res) => {
     try {
-        // Fetch raw metrics from the public swagger-stats endpoint
-        const response = await axios.get(`https://dump1090.ebctech.solutions//swagger-stats/metrics`);
-        const timeline = response.data.timeline;
+        const coreStats    = swStats.getCoreStats();
+        const timelineData = coreStats && coreStats.timeline && coreStats.timeline.data;
 
-        const days = 20;
+        const days      = 20;
         const endDate   = moment();
         const startDate = moment().subtract(days - 1, 'days');
-        
-        // Pre-populate every day in the window with 0 so gaps are visible
+
+        // Pre-populate every day in the window with 0 so gaps are visible in the chart
         const dailyRequests = {};
         for (let i = 0; i < days; i++) {
             const date = moment().subtract(i, 'days').format('YYYY-MM-DD');
             dailyRequests[date] = 0;
         }
 
-        // Sum requests per day from the swagger-stats timeline
-        for (const entry of timeline) {
-            const entryDate = moment(entry.ts);
-            if (entryDate.isBetween(startDate, endDate, 'day', '[]')) {
-                const dateKey = entryDate.format('YYYY-MM-DD');
-                if (dailyRequests.hasOwnProperty(dateKey)) {
-                    dailyRequests[dateKey] += entry.requests;
+        // timeline.data uses parallel arrays: ts[i] is the bucket timestamp,
+        // requests[i] is the request count for that bucket.
+        if (timelineData && Array.isArray(timelineData.ts)) {
+            for (let i = 0; i < timelineData.ts.length; i++) {
+                const entryDate = moment(timelineData.ts[i]);
+                if (entryDate.isBetween(startDate, endDate, 'day', '[]')) {
+                    const dateKey = entryDate.format('YYYY-MM-DD');
+                    if (Object.prototype.hasOwnProperty.call(dailyRequests, dateKey)) {
+                        dailyRequests[dateKey] += timelineData.requests[i] || 0;
+                    }
                 }
             }
         }
